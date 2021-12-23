@@ -21,12 +21,10 @@ taxonomyclean1 <- taxonomyclean[,-1]
 rownames(taxonomyclean1) <- taxonomyclean[,1]
 
 # Get the necessary columns, convert to matrix
-taxmatrix <- as.matrix(taxonomyclean1[2:8])
+taxmatrix <- as.data.frame(taxonomyclean1[2:8])
 taxmatrix=taxmatrix[!rownames(taxmatrix)=="fasta",]
-
 # Pool Firmicutes A,B C into Firmicutes
-# taxmatrix_mod=data.frame(taxmatrix)
-# taxmatrix_mod$Phylum[grepl("Firmi",taxmatrix_mod$Phylum)]="Firmicutes"
+taxmatrix$Phylum[grepl("Firmi",taxmatrix$Phylum)]="Firmicutes"
 
 # Load phylogenetic tree
 Phylo_bac=read.nexus("data/trees/gtdbtk.bac120.classify.nex")
@@ -86,27 +84,32 @@ dram=dram[order(rownames(taxmatrix)),]
 mean(rownames(dram)==rownames(taxmatrix))
 
 # Load bin quality data
-bin_q=read.csv("data/All_drep_bin_quality.csv")
+bin_q=read.csv("data/counts/caecumStats.txt")
 bin_q$genome=gsub(".fa","",bin_q$genome)
 bin_q=bin_q[bin_q$genome%in%rownames(dram),]
 bin_q=bin_q[match(rownames(dram),bin_q$genome),]
 
+# Set Archaea Phylum to Archaea for visualizations
+taxmatrix[taxmatrix$Domain!="Bacteria",]$Phylum="Archaea"
+
+
 # Barchart of bin qualities per Phylum
-data.frame(MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),
-           Phylum=taxmatrix_mod$Phylum,
+data.frame(MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),
+           Phylum=taxmatrix$Phylum,
            completeness=bin_q$completeness)%>%
   ggplot(aes(y=completeness,x=MAG,fill=Phylum,color=Phylum)) +
   geom_bar(stat = "identity")+
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
-  scale_color_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
+  scale_color_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/completeness_phylum.png",width = 8,height = 6)
 
 # group DRAM functions
 module=names(dram)[1:12]
-etc=names(dram)[13:25]
-cazy=names(dram)[26:44]
-metab=names(dram)[c(45:54,66:67)]
-scfa=names(dram)[55:65]
+etc=names(dram)[13:26]
+cazy=names(dram)[27:45]
+metab=names(dram)[c(46:62,76:78)]
+scfa=names(dram)[63:75]
 
 ### Exploration of module variables ###
 
@@ -118,28 +121,31 @@ data.frame(dram[module])%>%
   coord_cartesian(xlim=c(0,1))+
   facet_wrap(~name, scale = "free") +
   theme_bw()
+ggsave("panels/module_distributions.png",width = 12,height = 8)
 
 # Barchart MAGs sorted by Phyla 
-data.frame(dram[module],MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),Phylum=taxmatrix_mod$Phylum)%>%
+data.frame(dram[module],MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),Phylum=taxmatrix$Phylum)%>%
   pivot_longer(cols = 1:ncol(dram[module])) %>% 
   ggplot(aes(y=value,x=reorder(MAG,Phylum),fill=Phylum)) +
   geom_bar(stat = "identity")+
   facet_wrap(~name, scale = "free") +
   coord_cartesian(ylim = c(0,1))+
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/modules_phyla.png",width = 14,height = 8)
 
 # Module coverage vs MAG completeness (by Phylum) 
 data.frame(dram[module],
-           MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),
-           Phylum=taxmatrix_mod$Phylum,
+           MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),
+           Phylum=taxmatrix$Phylum,
            completeness=bin_q$completeness)%>%
   pivot_longer(cols = 1:ncol(dram[module])) %>% 
   ggplot(aes(y=value,x=completeness,fill=Phylum,color=Phylum)) +
   geom_smooth(method = "lm",se=FALSE)+
   facet_wrap(~name, scale = "free") +
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/module_vs_completeness.png",width = 14,height = 8)
 
 # Correlations between variables
 p_mat=cor_pmat(dram[module],  method = "spearman", use = "complete.obs")
@@ -154,6 +160,7 @@ ggcorrplot(cor_mat,
            digits = 1,
            insig = "blank",
            ggtheme = theme_bw())
+ggsave("panels/module_correlations.png",width = 12,height = 12)
 
 # PCA
 module_pca=prcomp(dram[module],scale = TRUE)
@@ -166,13 +173,13 @@ fviz_pca_biplot(module_pca,
                 pointshape = 21,
                 pointsize = 3,
                 col.ind = "black",
-                fill.ind = taxmatrix_mod$Phylum,  # Individuals color
-                palette=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"),
+                fill.ind = taxmatrix$Phylum,  # Individuals color
+                palette=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'),
                 # col.var = "blue", # Variables color
                 mean.point = FALSE,
                 ggtheme = theme_bw()
 )
-
+ggsave("panels/modules_pca.png",width = 8,height = 6)
 
 ### Exploration of etc variables ###
 
@@ -184,28 +191,31 @@ data.frame(dram[etc])%>%
   coord_cartesian(xlim=c(0,1))+
   facet_wrap(~name, scale = "free") +
   theme_bw()
+ggsave("panels/etc_distributions.png",width = 12,height = 8)
 
 # Barchart MAGs sorted by Phyla 
-data.frame(dram[etc],MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),Phylum=taxmatrix_mod$Phylum)%>%
+data.frame(dram[etc],MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),Phylum=taxmatrix$Phylum)%>%
   pivot_longer(cols = 1:ncol(dram[etc])) %>% 
   ggplot(aes(y=value,x=reorder(MAG,Phylum),fill=Phylum)) +
   geom_bar(stat = "identity")+
   facet_wrap(~name, scale = "free") +
   coord_cartesian(ylim = c(0,1))+
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/etc_phyla.png",width = 14,height = 8)
 
-# Module coverage vs MAG completeness (by Phylum) 
+# etc coverage vs MAG completeness (by Phylum) 
 data.frame(dram[etc],
-           MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),
-           Phylum=taxmatrix_mod$Phylum,
+           MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),
+           Phylum=taxmatrix$Phylum,
            completeness=bin_q$completeness)%>%
   pivot_longer(cols = 1:ncol(dram[etc])) %>% 
   ggplot(aes(y=value,x=completeness,fill=Phylum,color=Phylum)) +
   geom_smooth(method = "lm",se=FALSE)+
   facet_wrap(~name, scale = "free") +
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/etc_vs_completeness.png",width = 14,height = 8)
 
 # Correlations between variables
 p_mat=cor_pmat(dram[etc],  method = "spearman", use = "complete.obs")
@@ -220,6 +230,7 @@ ggcorrplot(cor_mat,
            digits = 1,
            insig = "blank",
            ggtheme = theme_bw())
+ggsave("panels/etc_correlations.png",width = 12,height = 12)
 
 # PCA
 module_pca=prcomp(dram[etc],scale = TRUE)
@@ -232,13 +243,13 @@ fviz_pca_biplot(module_pca,
                 pointshape = 21,
                 pointsize = 3,
                 col.ind = "black",
-                fill.ind = taxmatrix_mod$Phylum,  # Individuals color
-                palette=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"),
+                fill.ind = taxmatrix$Phylum,  # Individuals color
+                palette=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'),
                 # col.var = "blue", # Variables color
                 mean.point = FALSE,
                 ggtheme = theme_bw()
 )
-
+ggsave("panels/etc_pca.png",width = 8,height = 6)
 
 ### Exploration of cazy variables ###
 
@@ -251,28 +262,30 @@ dram[cazy] %>%
   geom_bar(stat = "identity") +
   facet_wrap(~name, scale = "free_x") +
   theme_bw()
+ggsave("panels/cazy_distributions.png",width = 12,height = 8)
 
 # Barchart of number of cazy-s in MAGs, sorted by Phyla 
-data.frame(dram[cazy],MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),Phylum=taxmatrix_mod$Phylum)%>%
+data.frame(dram[cazy],MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),Phylum=taxmatrix$Phylum)%>%
   pivot_longer(cols = 1:ncol(dram[cazy])) %>% 
   ggplot(aes(y=value,x=reorder(MAG,Phylum),fill=Phylum)) +
   geom_bar(stat = "identity")+
-  facet_wrap(~Phylum, scale = "free") +
-  coord_cartesian(ylim = c(0,15))+
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  facet_wrap(~Phylum,scales = "free_x") +
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/cazy_sum_phyla.png",width = 14,height = 8)
 
 # Number of CAZYs vs MAG completeness (by Phylum) 
 data.frame(dram[cazy],
-           MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),
-           Phylum=taxmatrix_mod$Phylum,
+           MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),
+           Phylum=taxmatrix$Phylum,
            completeness=bin_q$completeness)%>%
   pivot_longer(cols = 1:ncol(dram[cazy])) %>% 
   ggplot(aes(y=value,x=completeness,fill=Phylum,color=Phylum)) +
   geom_smooth(method = "lm",se=FALSE)+
   facet_wrap(~name, scale = "free") +
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/cazy_vs_completeness.png",width = 14,height = 8)
 
 # Correlations between CAZYs (binary data)
 # Pearson correlation and tetrachoric correlation, an alternative that might be
@@ -288,6 +301,8 @@ ggcorrplot(cor_mat,
            digits = 1,
            insig = "blank",
            ggtheme = theme_bw())
+ggsave("panels/cazy_correlations.png",width = 12,height = 12)
+
 ggcorrplot(cor_tetra,
            outline.color = "black",
            show.diag  = F,
@@ -297,15 +312,16 @@ ggcorrplot(cor_tetra,
            digits = 1,
            insig = "blank",
            ggtheme = theme_bw())
+ggsave("panels/cazy_tetrachoric_correlations.png",width = 12,height = 12)
 
 # Logistic PCA for binary data
 logpca_cv = cv.lpca(dram[cazy], ks = 2, ms = 1:10)
 plot(logpca_cv)
 logpca_model = logisticPCA(dram[cazy], k = 2, m = which.min(logpca_cv))
-plot(logpca_model,"scores")+geom_point(aes(colour = taxmatrix_mod$Phylum),size=4)+
-  scale_color_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+plot(logpca_model,"scores")+geom_point(aes(colour = taxmatrix$Phylum),size=4)+
+  scale_color_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
-
+ggsave("panels/cazy_pca.png",width = 8,height = 6)
 
 ### Exploration of metab variables ###
 
@@ -318,28 +334,30 @@ dram[metab] %>%
   geom_bar(stat = "identity") +
   facet_wrap(~name, scale = "free_x") +
   theme_bw()
+ggsave("panels/metab_distributions.png",width = 12,height = 8)
 
 # Barchart of number of metab pathways in MAGs, sorted by Phyla
-data.frame(dram[metab],MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),Phylum=taxmatrix_mod$Phylum)%>%
+data.frame(dram[metab],MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),Phylum=taxmatrix$Phylum)%>%
   pivot_longer(cols = 1:ncol(dram[metab])) %>% 
   ggplot(aes(y=value,x=reorder(MAG,Phylum),fill=Phylum)) +
   geom_bar(stat = "identity")+
-  facet_wrap(~Phylum, scale = "free") +
-  coord_cartesian(ylim = c(0,8))+
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  facet_wrap(~Phylum, scale = "free_x") +
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/metab_phyla.png",width = 14,height = 8)
 
 # Number of metab genes vs MAG completeness (by Phylum) 
 data.frame(dram[metab],
-           MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),
-           Phylum=taxmatrix_mod$Phylum,
+           MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),
+           Phylum=taxmatrix$Phylum,
            completeness=bin_q$completeness)%>%
   pivot_longer(cols = 1:ncol(dram[metab])) %>% 
   ggplot(aes(y=value,x=completeness,fill=Phylum,color=Phylum)) +
   geom_smooth(method = "lm",se=FALSE)+
   facet_wrap(~name, scale = "free") +
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/metab_vs_completeness.png",width = 14,height = 8)
 
 # Correlations between metab (binary data)
 # Pearson correlation and tetrachoric correlation, an alternative that might be
@@ -355,6 +373,8 @@ ggcorrplot(cor_mat,
            digits = 1,
            insig = "blank",
            ggtheme = theme_bw())
+ggsave("panels/metab_correlations.png",width = 12,height = 12)
+
 ggcorrplot(cor_tetra,
            outline.color = "black",
            show.diag  = F,
@@ -364,15 +384,16 @@ ggcorrplot(cor_tetra,
            digits = 1,
            insig = "blank",
            ggtheme = theme_bw())
+ggsave("panels/metab_tetrachoric_correlations.png",width = 12,height = 12)
 
 # Logistic PCA for binary data
 logpca_cv = cv.lpca(dram[metab], ks = 2, ms = 1:10)
 plot(logpca_cv)
 logpca_model = logisticPCA(dram[metab], k = 2, m = which.min(logpca_cv))
-plot(logpca_model,"scores")+geom_point(aes(colour = taxmatrix_mod$Phylum),size=4)+
-  scale_color_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+plot(logpca_model,"scores")+geom_point(aes(colour = taxmatrix$Phylum),size=4)+
+  scale_color_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
-
+ggsave("panels/metab_pca.png",width = 8,height = 6)
 
 ### Exploration of scfa variables ###
 
@@ -385,28 +406,30 @@ dram[scfa] %>%
   geom_bar(stat = "identity") +
   facet_wrap(~name, scale = "free_x") +
   theme_bw()
+ggsave("panels/scfa_distributions.png",width = 12,height = 8)
 
 # Barchart of number of scfa-s in MAGs, sorted by Phyla 
-data.frame(dram[scfa],MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),Phylum=taxmatrix_mod$Phylum)%>%
+data.frame(dram[scfa],MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),Phylum=taxmatrix$Phylum)%>%
   pivot_longer(cols = 1:ncol(dram[scfa])) %>% 
   ggplot(aes(y=value,x=reorder(MAG,Phylum),fill=Phylum)) +
   geom_bar(stat = "identity")+
-  facet_wrap(~Phylum, scale = "free") +
-  coord_cartesian(ylim = c(0,9))+
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  facet_wrap(~Phylum, scale = "free_x") +
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/scfa_phyla.png",width = 14,height = 8)
 
 # Number of SCFAs vs MAG completeness (by Phylum) 
 data.frame(dram[scfa],
-           MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix_mod$Phylum)]),
-           Phylum=taxmatrix_mod$Phylum,
+           MAG=factor(rownames(dram),levels = rownames(dram)[order(taxmatrix$Phylum)]),
+           Phylum=taxmatrix$Phylum,
            completeness=bin_q$completeness)%>%
   pivot_longer(cols = 1:ncol(dram[scfa])) %>% 
   ggplot(aes(y=value,x=completeness,fill=Phylum,color=Phylum)) +
   geom_smooth(method = "lm",se=FALSE)+
   facet_wrap(~name, scale = "free") +
-  scale_fill_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+  scale_fill_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/scfa_vs_completeness.png",width = 14,height = 8)
 
 
 # Correlations between SCFAs (binary data)
@@ -423,6 +446,7 @@ ggcorrplot(cor_mat,
            digits = 1,
            insig = "blank",
            ggtheme = theme_bw())
+ggsave("panels/scfa_correlations.png",width = 12,height = 12)
 ggcorrplot(cor_tetra,
            outline.color = "black",
            show.diag  = F,
@@ -432,11 +456,13 @@ ggcorrplot(cor_tetra,
            digits = 1,
            insig = "blank",
            ggtheme = theme_bw())
+ggsave("panels/scfa_tetrachoric_correlations.png",width = 12,height = 12)
 
 # Logistic PCA for binary data
 logpca_cv = cv.lpca(dram[scfa], ks = 2, ms = 1:10)
 plot(logpca_cv)
 logpca_model = logisticPCA(dram[scfa], k = 2, m = which.min(logpca_cv))
-plot(logpca_model,"scores")+geom_point(aes(colour = taxmatrix_mod$Phylum),size=4)+
-  scale_color_manual(values=c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6","#6a3d9a"))+
+plot(logpca_model,"scores")+geom_point(aes(colour = taxmatrix$Phylum),size=4)+
+  scale_color_manual(values=c('#a6cee3','#33a02c','#b2df8a','black','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'))+
   theme_bw()
+ggsave("panels/metab_pca.png",width = 8,height = 6)
